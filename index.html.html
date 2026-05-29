@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeaveFlow — Office Leave Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --surface3: #212d42;
+    --accent: #4f8ef7;
+    --accent2: #7c3aed;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --text: #e8edf8;
+    --text-muted: #8896b3;
+    --border: rgba(255,255,255,0.07);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 15px; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG mesh */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 10% 10%, rgba(79,142,247,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 50% at 90% 80%, rgba(124,58,237,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* HEADER */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px; }
+  .logo-sub { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+  .nav-tabs { display: flex; gap: 4px; background: var(--surface); border-radius: 12px; padding: 4px; }
+  .nav-tab {
+    padding: 8px 18px; border-radius: 9px; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500;
+    color: var(--text-muted); background: transparent; transition: all 0.2s;
+  }
+  .nav-tab.active { background: var(--accent); color: #fff; }
+  .nav-tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+  /* VIEWS */
+  .view { display: none; animation: fadeUp 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* SECTION TITLE */
+  .section-title { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+  .section-sub { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 28px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+  .card-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 20px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem; }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .form-group { display: flex; flex-direction: column; gap: 8px; }
+  .form-group.full { grid-column: 1/-1; }
+  label { font-size: 0.82rem; font-weight: 500; color: var(--text-muted); letter-spacing: 0.3px; }
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,142,247,0.15);
+  }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 90px; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+
+  /* EMPLOYEE NAME PILL */
+  .employee-pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, rgba(79,142,247,0.15), rgba(124,58,237,0.12));
+    border: 1px solid rgba(79,142,247,0.3);
+    border-radius: 50px; padding: 10px 18px;
+    font-weight: 600; font-size: 1rem; color: var(--accent);
+  }
+  .employee-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 700; color: #fff;
+  }
+
+  /* BALANCE CARDS */
+  .balance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .balance-card {
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    border: 1px solid var(--border);
+    text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .balance-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .balance-card.total::before { background: var(--accent); }
+  .balance-card.used::before { background: var(--red); }
+  .balance-card.remaining::before { background: var(--green); }
+  .balance-num {
+    font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800;
+    margin-bottom: 4px; line-height: 1;
+  }
+  .balance-card.total .balance-num { color: var(--accent); }
+  .balance-card.used .balance-num { color: var(--red); }
+  .balance-card.remaining .balance-num { color: var(--green); }
+  .balance-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.8px; }
+
+  /* PROGRESS BAR */
+  .progress-wrap { background: var(--surface3); border-radius: 100px; height: 8px; overflow: hidden; margin: 16px 0 6px; }
+  .progress-bar { height: 100%; border-radius: 100px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); background: linear-gradient(90deg, var(--green), var(--accent)); }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
+
+  /* BTN */
+  .btn {
+    padding: 13px 28px; border-radius: var(--radius-sm); border: none;
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.9rem;
+    cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; box-shadow: 0 4px 20px rgba(79,142,247,0.3);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(79,142,247,0.4); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--text); background: var(--surface3); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  thead tr { background: var(--surface2); }
+  th { padding: 13px 16px; text-align: left; font-family: 'Syne', sans-serif; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 600; }
+  td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* STATUS BADGE */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px;
+  }
+  .badge-pending { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.2); }
+  .badge-approved { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+  .badge-rejected { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .dot-pending { background: var(--yellow); }
+  .dot-approved { background: var(--green); }
+  .dot-rejected { background: var(--red); }
+
+  /* APPROVE VIEW */
+  .approve-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 18px;
+    transition: border-color 0.2s;
+  }
+  .approve-card:hover { border-color: rgba(79,142,247,0.3); }
+  .approve-avatar {
+    width: 44px; height: 44px; min-width: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem; color: #fff;
+  }
+  .approve-info { flex: 1; }
+  .approve-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 3px; }
+  .approve-meta { font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  .approve-meta span { display: flex; align-items: center; gap: 4px; }
+  .approve-actions { display: flex; gap: 8px; }
+  .btn-approve { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.25); padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-approve:hover { background: rgba(16,185,129,0.25); }
+  .btn-reject { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-reject:hover { background: rgba(239,68,68,0.2); }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 30px; right: 30px; z-index: 9999;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 20px;
+    font-size: 0.88rem; font-weight: 500;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: slideIn 0.3s ease;
+    display: flex; align-items: center; gap: 10px;
+    max-width: 320px;
+  }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error { border-left: 3px solid var(--red); }
+  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center; padding: 50px 20px;
+    color: var(--text-muted);
+  }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5; }
+  .empty-text { font-size: 0.9rem; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 32px; width: 100%; max-width: 440px;
+    transform: scale(0.95); transition: transform 0.25s;
+  }
+  .modal-overlay.open .modal { transform: scale(1); }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+  /* RESPONSIVE */
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .balance-grid { grid-template-columns: 1fr; }
+    .nav-tabs { display: none; }
+    .mobile-nav { display: flex !important; }
+    header { flex-direction: column; gap: 16px; align-items: flex-start; }
+    .approve-actions { flex-direction: column; }
+  }
+  .mobile-nav {
+    display: none; gap: 4px; flex-wrap: wrap;
+    background: var(--surface); border-radius: 12px; padding: 4px;
+    margin-bottom: 20px;
+  }
+  .mobile-nav .nav-tab { flex: 1; text-align: center; min-width: 80px; }
+
+  .tl-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(124,58,237,0.12); color: #a78bfa;
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 6px; padding: 2px 10px; font-size: 0.75rem; font-weight: 600;
+  }
+  .days-badge {
+    background: rgba(79,142,247,0.12); color: var(--accent);
+    border-radius: 6px; padding: 2px 10px; font-size: 0.78rem; font-weight: 600; border: 1px solid rgba(79,142,247,0.2);
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🏢</div>
+      <div>
+        <div class="logo-text">LeaveFlow</div>
+        <div class="logo-sub">Office Leave Management</div>
+      </div>
+    </div>
+    <div class="nav-tabs" id="desktopNav">
+      <button class="nav-tab active" onclick="switchView('apply')">Apply Leave</button>
+      <button class="nav-tab" onclick="switchView('status')">My Leaves</button>
+      <button class="nav-tab" onclick="switchView('approve')">TL Approval</button>
+      <button class="nav-tab" onclick="switchView('team')">Team View</button>
+    </div>
+  </header>
+
+  <!-- Mobile Nav -->
+  <div class="mobile-nav" id="mobileNav">
+    <button class="nav-tab active" onclick="switchView('apply')">Apply</button>
+    <button class="nav-tab" onclick="switchView('status')">My Leaves</button>
+    <button class="nav-tab" onclick="switchView('approve')">Approval</button>
+    <button class="nav-tab" onclick="switchView('team')">Team</button>
+  </div>
+
+  <!-- ========== APPLY VIEW ========== -->
+  <div class="view active" id="view-apply">
+    <div class="section-title">Apply for Leave</div>
+    <p class="section-sub">Fill in your leave details and submit for approval</p>
+
+    <div class="card">
+      <!-- Employee selection -->
+      <div class="card-title">Employee Details</div>
+      <div class="form-grid" style="margin-bottom:20px;">
+        <div class="form-group">
+          <label>Your Name</label>
+          <select id="empSelect" onchange="onEmployeeSelect()">
+            <option value="">— Select Your Name —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Under TL / PM</label>
+          <select id="tlSelect">
+            <option value="">— Auto-filled —</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="empPillWrap" style="display:none; margin-bottom:20px;">
+        <div class="employee-pill" id="empPill">
+          <div class="employee-avatar" id="empAvatar"></div>
+          <span id="empPillName"></span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Balance summary -->
+      <div id="balanceSummary" style="display:none;">
+        <div class="card-title">Leave Balance</div>
+        <div class="balance-grid">
+          <div class="balance-card total">
+            <div class="balance-num" id="totalLeaves">0</div>
+            <div class="balance-label">Total Allotted</div>
+          </div>
+          <div class="balance-card used">
+            <div class="balance-num" id="usedLeaves">0</div>
+            <div class="balance-label">Days Used</div>
+          </div>
+          <div class="balance-card remaining">
+            <div class="balance-num" id="remainingLeaves">0</div>
+            <div class="balance-label">Days Remaining</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="leaveProgressBar" style="width:0%"></div>
+        </div>
+        <div class="progress-label">
+          <span>0 days used</span>
+          <span id="progressLabel"></span>
+        </div>
+        <div class="divider"></div>
+      </div>
+
+      <!-- Leave form -->
+      <div class="card-title">Leave Request</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Leave Type</label>
+          <select id="leaveType">
+            <option value="">Select type</option>
+            <option value="Sick Leave">🤒 Sick Leave</option>
+            <option value="Casual Leave">🌴 Casual Leave</option>
+            <option value="Earned Leave">💼 Earned Leave</option>
+            <option value="Emergency Leave">🚨 Emergency Leave</option>
+            <option value="Maternity/Paternity Leave">👶 Maternity/Paternity Leave</option>
+            <option value="Unpaid Leave">📋 Unpaid Leave</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Number of Days</label>
+          <input type="number" id="numDays" min="1" max="30" placeholder="e.g. 2" oninput="calcDays()" readonly>
+        </div>
+        <div class="form-group">
+          <label>From Date</label>
+          <input type="date" id="fromDate" onchange="calcDays()">
+        </div>
+        <div class="form-group">
+          <label>To Date</label>
+          <input type="date" id="toDate" onchange="calcDays()">
+        </div>
+        <div class="form-group full">
+          <label>Reason for Leave</label>
+          <textarea id="leaveReason" placeholder="Please describe the reason for your leave request..."></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top:24px; display:flex; gap:12px;">
+        <button class="btn btn-primary" onclick="submitLeave()">
+          <span>📤</span> Submit Application
+        </button>
+        <button class="btn btn-ghost" onclick="resetForm()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== STATUS VIEW ========== -->
+  <div class="view" id="view-status">
+    <div class="section-title">My Leave History</div>
+    <p class="section-sub">Track all your submitted leave applications and their approval status</p>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>View For Employee</label>
+          <select id="statusEmpSelect" onchange="renderStatusView()">
+            <option value="">— Select Employee —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="statusBalanceWrap" style="display:none;">
+      <div class="balance-grid" style="margin-bottom:20px;">
+        <div class="balance-card total">
+          <div class="balance-num" id="stTotal">0</div>
+          <div class="balance-label">Total Allotted</div>
+        </div>
+        <div class="balance-card used">
+          <div class="balance-num" id="stUsed">0</div>
+          <div class="balance-label">Days Used</div>
+        </div>
+        <div class="balance-card remaining">
+          <div class="balance-num" id="stRemaining">0</div>
+          <div class="balance-label">Days Remaining</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="statusTableBody">
+        <div class="empty">
+          <div class="empty-icon">📄</div>
+          <div class="empty-text">Select an employee to see leave history</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== APPROVE VIEW ========== -->
+  <div class="view" id="view-approve">
+    <div class="section-title">TL / PM Approval Panel</div>
+    <p class="section-sub">Review and approve or reject leave requests from your team</p>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="form-group">
+        <label>Login As TL / PM</label>
+        <select id="tlLoginSelect" onchange="renderApproveView()">
+          <option value="">— Select Your Role —</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="approveList"></div>
+  </div>
+
+  <!-- ========== TEAM VIEW ========== -->
+  <div class="view" id="view-team">
+    <div class="section-title">Team Leave Overview</div>
+    <p class="section-sub">See all employees, their leave balance and usage at a glance</p>
+
+    <div class="card">
+      <div class="table-wrap" id="teamTable">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>TL / PM</th>
+              <th>Total</th>
+              <th>Used</th>
+              <th>Remaining</th>
+              <th>Usage</th>
+            </tr>
+          </thead>
+          <tbody id="teamTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastEl" class="toast" style="display:none;"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Confirm Action</div>
+    <div id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<script>
+// ======================= DATA =======================
+const EMPLOYEES = [
+  { id: 1, name: "Rahul Sharma",     tl: "Priya Kapoor",   totalLeave: 18 },
+  { id: 2, name: "Ananya Bose",      tl: "Priya Kapoor",   totalLeave: 18 },
+  { id: 3, name: "Suman Das",        tl: "Priya Kapoor",   totalLeave: 18 },
+  { id: 4, name: "Imran Khan",       tl: "Amit Verma",     totalLeave: 18 },
+  { id: 5, name: "Pooja Roy",        tl: "Amit Verma",     totalLeave: 18 },
+  { id: 6, name: "Debashis Mondal",  tl: "Amit Verma",     totalLeave: 18 },
+  { id: 7, name: "Tanya Singh",      tl: "Neha Ghosh",     totalLeave: 18 },
+  { id: 8, name: "Arnab Dutta",      tl: "Neha Ghosh",     totalLeave: 18 },
+];
+
+const TLS = [...new Set(EMPLOYEES.map(e => e.tl))];
+
+// Load leaves from localStorage
+let leaves = JSON.parse(localStorage.getItem('lf_leaves') || '[]');
+function saveLeaves() { localStorage.setItem('lf_leaves', JSON.stringify(leaves)); }
+
+// ======================= INIT =======================
+function init() {
+  // Populate employee dropdowns
+  const empSelects = ['empSelect', 'statusEmpSelect'];
+  empSelects.forEach(id => {
+    const el = document.getElementById(id);
+    EMPLOYEES.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.id; o.textContent = e.name;
+      el.appendChild(o);
+    });
+  });
+
+  // TL login select
+  const tlLogin = document.getElementById('tlLoginSelect');
+  TLS.forEach(tl => {
+    const o = document.createElement('option');
+    o.value = tl; o.textContent = tl;
+    tlLogin.appendChild(o);
+  });
+
+  renderTeamTable();
+  setMinDate();
+}
+
+function setMinDate() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('fromDate').min = today;
+  document.getElementById('toDate').min = today;
+}
+
+// ======================= NAV =======================
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(el => {
+    if (el.getAttribute('onclick').includes("'" + v + "'")) el.classList.add('active');
+  });
+  if (v === 'team') renderTeamTable();
+  if (v === 'approve') renderApproveView();
+  if (v === 'status') renderStatusView();
+}
+
+// ======================= EMPLOYEE SELECT =======================
+function onEmployeeSelect() {
+  const empId = parseInt(document.getElementById('empSelect').value);
+  const emp = EMPLOYEES.find(e => e.id === empId);
+
+  if (!emp) {
+    document.getElementById('empPillWrap').style.display = 'none';
+    document.getElementById('balanceSummary').style.display = 'none';
+    document.getElementById('tlSelect').innerHTML = '<option>— Auto-filled —</option>';
+    return;
+  }
+
+  // Pill
+  const initials = emp.name.split(' ').map(x => x[0]).join('').substring(0,2);
+  document.getElementById('empAvatar').textContent = initials;
+  document.getElementById('empPillName').textContent = emp.name;
+  document.getElementById('empPillWrap').style.display = 'block';
+
+  // TL select
+  const tlSel = document.getElementById('tlSelect');
+  tlSel.innerHTML = `<option value="${emp.tl}">${emp.tl}</option>`;
+
+  // Balance
+  updateBalance(emp);
+  document.getElementById('balanceSummary').style.display = 'block';
+}
+
+function getUsedDays(empId) {
+  return leaves
+    .filter(l => l.empId === empId && l.status === 'Approved')
+    .reduce((sum, l) => sum + (l.days || 0), 0);
+}
+
+function updateBalance(emp) {
+  const used = getUsedDays(emp.id);
+  const remaining = Math.max(0, emp.totalLeave - used);
+  const pct = Math.min(100, Math.round((used / emp.totalLeave) * 100));
+
+  document.getElementById('totalLeaves').textContent = emp.totalLeave;
+  document.getElementById('usedLeaves').textContent = used;
+  document.getElementById('remainingLeaves').textContent = remaining;
+  document.getElementById('leaveProgressBar').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = remaining + ' days remaining';
+  document.querySelector('.progress-label span').textContent = used + ' days used';
+}
+
+// ======================= CALC DAYS =======================
+function calcDays() {
+  const f = document.getElementById('fromDate').value;
+  const t = document.getElementById('toDate').value;
+  if (f && t) {
+    const d1 = new Date(f), d2 = new Date(t);
+    if (d2 >= d1) {
+      const diff = Math.round((d2 - d1) / 86400000) + 1;
+      document.getElementById('numDays').value = diff;
+    }
+  }
+}
+
+// ======================= SUBMIT =======================
+function submitLeave() {
+  const empId = parseInt(document.getElementById('empSelect').value);
+  const tl = document.getElementById('tlSelect').value;
+  const type = document.getElementById('leaveType').value;
+  const from = document.getElementById('fromDate').value;
+  const to = document.getElementById('toDate').value;
+  const days = parseInt(document.getElementById('numDays').value);
+  const reason = document.getElementById('leaveReason').value.trim();
+
+  if (!empId) return showToast('Please select your name', 'error');
+  if (!type) return showToast('Please select leave type', 'error');
+  if (!from || !to) return showToast('Please select dates', 'error');
+  if (!reason) return showToast('Please provide a reason', 'error');
+  if (!days || days < 1) return showToast('Invalid date range', 'error');
+
+  const emp = EMPLOYEES.find(e => e.id === empId);
+  const used = getUsedDays(empId);
+  const remaining = emp.totalLeave - used;
+
+  if (days > remaining) {
+    return showToast(`Not enough leave balance! Only ${remaining} days remaining.`, 'error');
+  }
+
+  openModal(
+    'Confirm Leave Application',
+    `<div style="font-size:0.9rem; color:var(--text-muted); line-height:1.8;">
+      <div><strong style="color:var(--text);">Employee:</strong> ${emp.name}</div>
+      <div><strong style="color:var(--text);">Type:</strong> ${type}</div>
+      <div><strong style="color:var(--text);">Duration:</strong> ${from} → ${to} (${days} days)</div>
+      <div><strong style="color:var(--text);">Under TL:</strong> ${tl}</div>
+      <div style="margin-top:8px; padding:10px 12px; background:var(--surface2); border-radius:8px;">${reason}</div>
+    </div>`,
+    [
+      { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
+      { label: '✅ Confirm Submit', cls: 'btn-primary', action: () => {
+        const leaf = {
+          id: Date.now(),
+          empId, tl, type, from, to, days, reason,
+          status: 'Pending',
+          appliedOn: new Date().toLocaleDateString('en-IN')
+        };
+        leaves.push(leaf);
+        saveLeaves();
+        closeModal();
+        resetForm();
+        showToast('Leave application submitted! ✅', 'success');
+        const freshEmp = EMPLOYEES.find(e => e.id === empId);
+        if (freshEmp) updateBalance(freshEmp);
+      }}
+    ]
+  );
+}
+
+function resetForm() {
+  ['empSelect','leaveType','fromDate','toDate','leaveReason'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('numDays').value = '';
+  document.getElementById('empPillWrap').style.display = 'none';
+  document.getElementById('balanceSummary').style.display = 'none';
+  document.getElementById('tlSelect').innerHTML = '<option>— Auto-filled —</option>';
+}
+
+// ======================= STATUS VIEW =======================
+function renderStatusView() {
+  const empId = parseInt(document.getElementById('statusEmpSelect').value);
+  const emp = EMPLOYEES.find(e => e.id === empId);
+  const wrap = document.getElementById('statusBalanceWrap');
+
+  if (!emp) {
+    wrap.style.display = 'none';
+    document.getElementById('statusTableBody').innerHTML = `
+      <div class="empty"><div class="empty-icon">📄</div><div class="empty-text">Select an employee to see leave history</div></div>`;
+    return;
+  }
+
+  const used = getUsedDays(emp.id);
+  const rem = Math.max(0, emp.totalLeave - used);
+  document.getElementById('stTotal').textContent = emp.totalLeave;
+  document.getElementById('stUsed').textContent = used;
+  document.getElementById('stRemaining').textContent = rem;
+  wrap.style.display = 'block';
+
+  const empLeaves = leaves.filter(l => l.empId === empId);
+
+  if (!empLeaves.length) {
+    document.getElementById('statusTableBody').innerHTML = `
+      <div class="empty"><div class="empty-icon">🌿</div><div class="empty-text">No leave applications found</div></div>`;
+    return;
+  }
+
+  let rows = empLeaves.map(l => `
+    <tr>
+      <td><span class="days-badge">${l.days}d</span></td>
+      <td>${l.type}</td>
+      <td>${l.from}</td>
+      <td>${l.to}</td>
+      <td><span class="tl-badge">${l.tl}</span></td>
+      <td style="max-width:180px; font-size:0.82rem; color:var(--text-muted);">${l.reason.substring(0,60)}${l.reason.length>60?'...':''}</td>
+      <td>${statusBadge(l.status)}</td>
+      <td style="font-size:0.8rem;color:var(--text-muted);">${l.appliedOn}</td>
+    </tr>`).join('');
+
+  document.getElementById('statusTableBody').innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Days</th><th>Type</th><th>From</th><th>To</th><th>TL/PM</th><th>Reason</th><th>Status</th><th>Applied</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function statusBadge(s) {
+  if (s === 'Approved') return `<span class="badge badge-approved"><span class="dot dot-approved"></span>Approved</span>`;
+  if (s === 'Rejected') return `<span class="badge badge-rejected"><span class="dot dot-rejected"></span>Rejected</span>`;
+  return `<span class="badge badge-pending"><span class="dot dot-pending"></span>Pending</span>`;
+}
+
+// ======================= APPROVE VIEW =======================
+function renderApproveView() {
+  const tl = document.getElementById('tlLoginSelect').value;
+  const list = document.getElementById('approveList');
+
+  if (!tl) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🔐</div><div class="empty-text">Select your TL/PM role to see pending requests</div></div>`;
+    return;
+  }
+
+  const pending = leaves.filter(l => l.tl === tl && l.status === 'Pending');
+
+  if (!pending.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🎉</div><div class="empty-text">No pending approvals — all clear!</div></div>`;
+    return;
+  }
+
+  list.innerHTML = pending.map(l => {
+    const emp = EMPLOYEES.find(e => e.id === l.empId);
+    const initials = emp ? emp.name.split(' ').map(x => x[0]).join('').substring(0,2) : '??';
+    return `
+    <div class="approve-card" id="ac_${l.id}">
+      <div class="approve-avatar">${initials}</div>
+      <div class="approve-info">
+        <div class="approve-name">${emp ? emp.name : 'Unknown'}</div>
+        <div class="approve-meta">
+          <span>📅 ${l.from} → ${l.to}</span>
+          <span>🗓 ${l.days} day${l.days>1?'s':''}</span>
+          <span>📋 ${l.type}</span>
+          <span>💬 ${l.reason.substring(0,50)}${l.reason.length>50?'...':''}</span>
+        </div>
+      </div>
+      <div class="approve-actions">
+        <button class="btn-approve" onclick="handleApproval(${l.id}, 'Approved')">✅ Approve</button>
+        <button class="btn-reject" onclick="handleApproval(${l.id}, 'Rejected')">❌ Reject</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function handleApproval(leaveId, decision) {
+  const leaf = leaves.find(l => l.id === leaveId);
+  const emp = EMPLOYEES.find(e => e.id === leaf.empId);
+  openModal(
+    decision === 'Approved' ? '✅ Approve Leave' : '❌ Reject Leave',
+    `<p style="color:var(--text-muted); font-size:0.9rem;">Are you sure you want to <strong style="color:var(--text);">${decision.toLowerCase()}</strong> the leave request from <strong style="color:var(--text);">${emp.name}</strong> for <strong style="color:var(--text);">${leaf.days} day(s)</strong>?</p>`,
+    [
+      { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
+      { label: decision === 'Approved' ? '✅ Yes, Approve' : '❌ Yes, Reject', cls: 'btn-primary', action: () => {
+        leaf.status = decision;
+        saveLeaves();
+        closeModal();
+        renderApproveView();
+        renderTeamTable();
+        showToast(`Leave ${decision.toLowerCase()} for ${emp.name}`, decision === 'Approved' ? 'success' : 'error');
+      }}
+    ]
+  );
+}
+
+// ======================= TEAM TABLE =======================
+function renderTeamTable() {
+  const tbody = document.getElementById('teamTableBody');
+  tbody.innerHTML = EMPLOYEES.map(emp => {
+    const used = getUsedDays(emp.id);
+    const rem = Math.max(0, emp.totalLeave - used);
+    const pct = Math.min(100, Math.round((used / emp.totalLeave) * 100));
+    const initials = emp.name.split(' ').map(x => x[0]).join('').substring(0,2);
+    return `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;min-width:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#fff;">${initials}</div>
+          <span style="font-weight:500;">${emp.name}</span>
+        </div>
+      </td>
+      <td><span class="tl-badge">${emp.tl}</span></td>
+      <td style="font-weight:600;color:var(--accent);">${emp.totalLeave}</td>
+      <td style="font-weight:600;color:var(--red);">${used}</td>
+      <td style="font-weight:600;color:var(--green);">${rem}</td>
+      <td style="min-width:120px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;background:var(--surface3);border-radius:100px;height:6px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green),var(--accent));border-radius:100px;transition:width 0.4s;"></div>
+          </div>
+          <span style="font-size:0.75rem;color:var(--text-muted);min-width:32px;">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ======================= MODAL =======================
+function openModal(title, body, actions) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  const actEl = document.getElementById('modalActions');
+  actEl.innerHTML = '';
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'btn ' + a.cls;
+    btn.textContent = a.label;
+    btn.onclick = a.action;
+    actEl.appendChild(btn);
+  });
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ======================= TOAST =======================
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const el = document.getElementById('toastEl');
+  el.className = 'toast ' + type;
+  el.innerHTML = (type === 'success' ? '✅ ' : '⚠️ ') + msg;
+  el.style.display = 'flex';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3500);
+}
+
+// ======================= START =======================
+init();
+</script>
+</body>
+</html>
